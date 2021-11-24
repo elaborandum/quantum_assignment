@@ -2,12 +2,12 @@
 
 FROM python:3.8-slim-buster
 
-WORKDIR /app
+WORKDIR /SRC
 
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
-COPY 'SRC' 'SRC'
+COPY . .
 
-CMD [ "jupyter notebook", 'SRC']
+CMD [ "jupyter notebook"]
  
