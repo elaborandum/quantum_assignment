@@ -1,13 +1,7 @@
 # syntax=docker/dockerfile:1
+FROM jupyter/minimal-notebook:python-3.9.7
 
-FROM python:3.8-slim-buster
+LABEL author="Stefan Rombouts"
 
-WORKDIR /SRC
-
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
-
-COPY . .
-
-CMD [ "jupyter notebook"]
- 
+COPY SRC .
+RUN pip install -r requirements.txt
