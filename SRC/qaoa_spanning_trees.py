@@ -10,7 +10,7 @@ Created on Thu Nov 25 14:42:03 2021
 
 import numpy as np
 #np_random = np.random.default_rng(20211124)
-np_random = np.random.RandomState(20211124) # Legacy random state generator.
+np_random = np.random.RandomState(20211128) # Legacy random state generator.
 # It is now recommended to use np.random.default_rn instead, 
 # but we stick with RandomState to maintain compability with networkx.spring_layout
 
@@ -205,7 +205,6 @@ for mixer in mixers:
     qslice.append(mixer.assign_parameters({theta: beta/2}), qr)
 qslice = transpile(qslice, backend)
 
-
 def make_qaoa(params):
     """
     Sets up a quantum circuit that searches for the minimal spanning tree on 
@@ -232,8 +231,12 @@ def path_length(x):
     Returns the sum of weights for all edges selected in the bitstring x.
     (leftmost bit corresponds to the first edge)           
     """
-    return sum(weight for weight, bit in zip(weights, x[::-1]) if bit == '1')
-    
+    length = sum(weight for weight, bit in zip(weights, x[::-1]) if bit == '1')
+    path = [e for e, bit in zip(graph.edges, x[::-1]) if bit == '1']
+    node_set = {i for i, j in path} | {j for i, j in path}
+    path_penalty = penalty*(len(graph.nodes)-len(node_set))
+    return length + path_penalty
+
 def evaluate_QAOA(shots=512):
     """
     Returns a function that evaluates a QAOA circuit
@@ -252,10 +255,9 @@ def evaluate_QAOA(shots=512):
     return execute_circuit
 
 
-
 #=============================================================================
 
-def evaulate_params(params, verbose: bool = False):
+def evaluate_params(params, verbose: bool = False):
     """
     Runs the QAOA circuit with the given parameters
     and returns the obtained path lenght and the set of edges in the path 
@@ -278,12 +280,39 @@ def evaulate_params(params, verbose: bool = False):
 
 from scipy.optimize import minimize
 
-def find_best_x(params):
-    print("Looking for the best x starting from ", params)
+def find_best_x(params, verbose: bool = False):
+    print("Looking for the best beta and gamma starting from ", params)
     evaluator = evaluate_QAOA()
-    best_x = minimize(evaluator, x0=params, method='COBYLA', 
-                      options={'maxiter': 10})
-    return best_x
+    best_x = minimize(evaluator, 
+                      x0=params, 
+                      method='COBYLA',
+                      # restrict beta and gamma to the interval $]-\pi, \pi]$
+                      constraints=(
+                          {'type': 'ineq', 'fun': lambda x: x[0] > -np.pi}, 
+                          {'type': 'ineq', 'fun': lambda x: x[0] <= np.pi}, 
+                          {'type': 'ineq', 'fun': lambda x: x[1] > -np.pi}, 
+                          {'type': 'ineq', 'fun': lambda x: x[1] <= np.pi}, 
+                          ),
+                      options={'maxiter': 40, 'rhobeg': 0.5, 'disp': True},
+                      )
+    if verbose:
+        print(best_x)
+    return best_x.x
+
 
 #=============================================================================
 
+def guess_best_x(params, iterations=40):
+    bg = params
+    length, path = evaluate_params(bg)
+    print(f"step {0:>4}: starting with length {length:8.2f}")
+    for it in range(1, iterations+1):
+        bg = np_random.uniform(-np.pi, np.pi, 2)
+        l, p = evaluate_params(bg)
+        if (len(p) > len(path)) or ((len(p)==len(path)) and (l < length)):
+            params, length, path = bg, l, p
+            print(f"step {it:>4}: found a better result with length {length:8.2f}")
+    return params
+
+
+#=============================================================================
