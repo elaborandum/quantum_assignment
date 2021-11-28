@@ -18,9 +18,10 @@ docker run -itp 8888:8888 quest
 
 Then open resulting the link in your browser:
 
-http://127.0.0.1:8888/?token=XYXY123XYZ 
+http://127.0.0.1:8888/notebooks/Quest.ipynb?token=XYXY123XYZ 
 
 (replace with the token that appears in the docker output)
+
 
 # Assignment: QAOA for minimum spanning trees.
 
